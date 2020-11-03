@@ -2,11 +2,13 @@ import React, {useState} from 'react';
 import { Modal, Tabs } from 'antd';
 import CreateEditLoad from '../load/create-edit-load/create-edit-load';
 import CreateEditMapping from '../entities/mapping/create-edit-mapping/create-edit-mapping';
+import CreateEditStepDialog from '../entities/create-edit-step-dialog/create-edit-step-dialog';
 import ViewCustom from '../entities/custom/view-custom/view-custom';
 import AdvancedSettingsDialog from "../advanced-settings/advanced-settings-dialog";
 import ConfirmYesNo from '../common/confirm-yes-no/confirm-yes-no';
 import styles from './steps.module.scss';
 import './steps.scss';
+import { StepType } from '../../types/curation-types';
   
 const { TabPane } = Tabs;
 
@@ -100,6 +102,22 @@ const Steps: React.FC<Props> = (props) => {
         openStepSettings={props.openStepSettings}
         setOpenStepSettings={props.setOpenStepSettings}
         createMappingArtifact={props.createStep}
+        stepData={props.stepData}
+        canReadWrite={props.canReadWrite}
+        canReadOnly={props.canReadOnly}
+        currentTab={currentTab}
+        setIsValid={setIsValid}
+        resetTabs={resetTabs}
+        setHasChanged={setHasChanged}
+    />);
+
+    const createEditMatching = (<CreateEditStepDialog
+        tabKey='1'
+        isNewStep={props.isNewStep}
+        openStepSettings={props.openStepSettings}
+        setOpenStepSettings={props.setOpenStepSettings}
+        editStepArtifactObject={props.createStep}
+        stepType={StepType.Matching}
         stepData={props.stepData}
         canReadWrite={props.canReadWrite}
         canReadOnly={props.canReadOnly}

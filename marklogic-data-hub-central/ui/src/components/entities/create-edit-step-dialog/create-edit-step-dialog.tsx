@@ -12,7 +12,10 @@ import { ConfirmationType } from '../../../types/common-types';
 import { StepType } from '../../../types/curation-types';
 
 type Props = {
-  isVisible: boolean;
+  tabKey: string;
+  isNewStep: boolean;
+  openStepSettings: boolean;
+  setOpenStepSettings: any;
   isEditing: boolean;
   stepType: StepType;
   editStepArtifactObject: any;
