@@ -4,10 +4,8 @@ import {Card, Icon, Row, Col, Modal, Select} from 'antd';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {faTrashAlt} from '@fortawesome/free-regular-svg-icons';
 import { convertDateFromISO, getInitialChars, extractCollectionFromSrcQuery, sortStepsByUpdated} from '../../../util/conversionFunctions';
-import CreateEditMappingDialog from './create-edit-mapping-dialog/create-edit-mapping-dialog';
 import SourceToEntityMap from './source-entity-map/source-to-entity-map';
-import {getUris, getDoc} from '../../../util/search-service'
-import AdvancedSettingsDialog from "../../advanced-settings/advanced-settings-dialog";
+import {getUris, getDoc} from '../../../util/search-service';
 import { AdvMapTooltips, SecurityTooltips } from '../../../config/tooltips.config';
 import {AuthoritiesContext} from "../../../util/authorities";
 import { getNestedEntities } from '../../../util/manageArtifacts-service';
@@ -16,7 +14,7 @@ import { xmlParserForMapping } from '../../../util/xml-parser';
 import { Link, useHistory } from 'react-router-dom';
 import { MLTooltip } from '@marklogic/design-system';
 import {faSlidersH, faPencilAlt} from '@fortawesome/free-solid-svg-icons';
-
+import Steps from "../../steps/steps";
 
 const { Option } = Select;
 
@@ -58,6 +56,8 @@ const MappingCard: React.FC<Props> = (props) => {
     const [sortedMapping, setSortedMappings] = useState(props.data);
     const [selected, setSelected] = useState({}); // track Add Step selections so we can reset on cancel
     const [selectVisible, setSelectVisible] = useState(false);
+    const [openStepSettings, setOpenStepSettings] = useState(false);
+    const [isNewStep, setIsNewStep] = useState(false);
 
     //For Entity table
     const [entityTypeProperties, setEntityTypeProperties] = useState<any[]>([]);
@@ -95,11 +95,17 @@ const MappingCard: React.FC<Props> = (props) => {
         setSourceData([]);
     },[props.data]);
 
+    const OpenAddNew = () => {
+        setIsNewStep(true);
+        setOpenStepSettings(true);
+    }
 
-    const OpenAddNewDialog = () => {
-        setTitle('New Mapping Step');
-        setNewMap(true);
-    };
+    const OpenStepSettings = (index) => {
+        setIsNewStep(false);
+        //setStepData(prevState => ({ ...prevState, ...props.data[index]}));
+        setMapData(prevState => ({ ...prevState, ...props.data[index]}));
+        setOpenStepSettings(true);
+    }
 
     const OpenEditStepDialog = async (name, index) => {
         setTitle('Edit Mapping Step');
@@ -114,7 +120,16 @@ const MappingCard: React.FC<Props> = (props) => {
         setOpenMappingSettings(true);
     };
 
+    const createMappingArtifact = async (payload) => {
+        // Update local form state, then save to db
+        setMapData(prevState => ({ ...prevState, ...payload}));
+        props.createMappingArtifact(payload);
+    }
 
+    const updateMappingArtifact = (payload) => {
+        // Update local form state
+        setMapData(prevState => ({ ...prevState, ...payload}));
+    }
 
     const handleCardDelete = (name) => {
         setDialogVisible(true);
@@ -623,7 +638,7 @@ const MappingCard: React.FC<Props> = (props) => {
                     <Card
                         size="small"
                         className={styles.addNewCard}>
-                        <div><Icon type="plus-circle" className={styles.plusIcon} theme="filled" onClick={OpenAddNewDialog}/></div>
+                        <div><Icon type="plus-circle" className={styles.plusIcon} theme="filled" onClick={OpenAddNew}/></div>
                         <br />
                         <p className={styles.addNewContent}>Add New</p>
                     </Card>
@@ -636,9 +651,9 @@ const MappingCard: React.FC<Props> = (props) => {
                         >
                             <Card
                                 actions={[
-                                    <MLTooltip title={'Edit'} placement="bottom"><i className={styles.editIcon} role="edit-mapping button" key ="last"><FontAwesomeIcon icon={faPencilAlt} data-testid={elem.name+'-edit'} onClick={() => OpenEditStepDialog(elem.name, index)}/></i></MLTooltip>,
+                                    <MLTooltip title={'Edit'} placement="bottom"><i className={styles.editIcon} role="edit-mapping button" key ="last"><FontAwesomeIcon icon={faPencilAlt} data-testid={elem.name+'-edit'} onClick={() => OpenStepSettings(index)}/></i></MLTooltip>,
                                     <MLTooltip title={'Step Details'} placement="bottom"><i style={{ fontSize: '16px', marginLeft: '-5px', marginRight: '5px'}}><FontAwesomeIcon icon={faSlidersH} onClick={() => openSourceToEntityMapping(elem.name,index)} data-testid={`${elem.name}-stepDetails`}/></i></MLTooltip>,
-                                    <MLTooltip title={'Settings'} placement="bottom"><Icon type="setting" key="setting" role="settings-mapping button" data-testid={elem.name+'-settings'} onClick={() => OpenMappingSettingsDialog(index)}/></MLTooltip>,
+                                    // <MLTooltip title={'Settings'} placement="bottom"><Icon type="setting" key="setting" role="settings-mapping button" data-testid={elem.name+'-settings'} onClick={() => OpenMappingSettingsDialog(index)}/></MLTooltip>,
                                     props.canReadWrite ? <MLTooltip title={'Delete'} placement="bottom"><i key ="last" role="delete-mapping button" data-testid={elem.name+'-delete'} onClick={() => handleCardDelete(elem.name)}><FontAwesomeIcon icon={faTrashAlt} className={styles.deleteIcon} size="lg"/></i></MLTooltip> : <MLTooltip title={'Delete: ' + SecurityTooltips.missingPermission} placement="bottom" overlayStyle={{maxWidth: '200px'}}><i role="disabled-delete-mapping button" data-testid={elem.name+'-disabled-delete'} onClick={(event) => event.preventDefault()}><FontAwesomeIcon icon={faTrashAlt} className={styles.disabledDeleteIcon} size="lg"/></i></MLTooltip>,
                                 ]}
                                 className={styles.cardStyle}
@@ -682,17 +697,6 @@ const MappingCard: React.FC<Props> = (props) => {
                         </div>
                     </Col>
                 )) : <span></span> }</Row>
-                <CreateEditMappingDialog
-                newMap={newMap}
-                title={title}
-                setNewMap={setNewMap}
-                targetEntityType={props.entityModel.entityTypeId}
-                createMappingArtifact={props.createMappingArtifact}
-                deleteMappingArtifact={props.deleteMappingArtifact}
-                mapData={mapData}
-                sourceDatabase={sourceDatabaseName}
-                canReadWrite={props.canReadWrite}
-                canReadOnly={props.canReadOnly}/>
                 {deleteConfirmation}
                 <SourceToEntityMap
                 sourceData={sourceData}
@@ -722,15 +726,23 @@ const MappingCard: React.FC<Props> = (props) => {
                 mapIndex={mapIndex}
                 tgtEntityReferences={tgtEntityReferences}
                 isLoading={isLoading}/>
-            <AdvancedSettingsDialog
-                tooltipsData={AdvMapTooltips}
-                openAdvancedSettings={openMappingSettings}
-                setOpenAdvancedSettings={setOpenMappingSettings}
-                stepData={mapData}
-                activityType={activityType}
-                canWrite={authorityService.canWriteMapping()}
-            />
             {addConfirmation}
+            <Steps
+                // Basic Settings
+                isNewStep={isNewStep}
+                createStep={createMappingArtifact}
+                stepData={mapData}
+                sourceDatabase={sourceDatabaseName}
+                canReadWrite={props.canReadWrite}
+                canReadOnly={props.canReadOnly}
+                // Advanced Settings
+                tooltipsData={AdvMapTooltips}
+                openStepSettings={openStepSettings}
+                setOpenStepSettings={setOpenStepSettings}
+                updateStep={updateMappingArtifact}
+                activityType={activityType}
+                canWrite={authorityService.canWriteLoad()}
+            />
         </div>
     );
 

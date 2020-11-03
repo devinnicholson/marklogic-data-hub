@@ -1,29 +1,27 @@
-import {Modal, Form, Input, Icon, Radio } from "antd";
+import { Form, Input, Icon, Radio } from "antd";
 import React, { useState, useEffect } from "react";
-import styles from './view-custom-dialog.module.scss';
-import {NewCustomTooltips} from '../../../../config/tooltips.config';
+import styles from './view-custom.module.scss';
+import { NewCustomTooltips } from '../../../../config/tooltips.config';
 import { MLTooltip, MLButton } from '@marklogic/design-system';
 
-
-
-const ViewCustomDialog = (props) => {
+const ViewCustom = (props) => {
 
   const [customName, setCustomName] = useState('');
-  const [description, setDescription] = useState(props.customData && props.customData !== {} ? props.customData.description : '');
-  const [selectedSource, setSelectedSource] = useState(props.customData && props.customData !== {} ? props.customData.selectedSource : 'query');
-  const [srcQuery, setSrcQuery] = useState(props.customData && props.customData !== {} ? props.customData.sourceQuery : '');
+  const [description, setDescription] = useState(props.stepData && props.stepData !== {} ? props.stepData.description : '');
+  const [selectedSource, setSelectedSource] = useState(props.stepData && props.stepData !== {} ? props.stepData.selectedSource : 'query');
+  const [srcQuery, setSrcQuery] = useState(props.stepData && props.stepData !== {} ? props.stepData.sourceQuery : '');
   const [collections, setCollections] = useState('');
 
     useEffect(() => {
-        if (props.customData && JSON.stringify(props.customData) != JSON.stringify({}) ) {
-            setCustomName(props.customData.name);
-            setDescription(props.customData.description);
-            setSrcQuery(props.customData.sourceQuery);
-            setSelectedSource(props.customData.selectedSource);
-            if(props.customData.selectedSource === 'collection'){
-                let srcCollection = props.customData.sourceQuery.substring(
-                    props.customData.sourceQuery.lastIndexOf("[") + 2,
-                    props.customData.sourceQuery.lastIndexOf("]") - 1
+        if (props.stepData && JSON.stringify(props.stepData) != JSON.stringify({}) ) {
+            setCustomName(props.stepData.name);
+            setDescription(props.stepData.description);
+            setSrcQuery(props.stepData.sourceQuery);
+            setSelectedSource(props.stepData.selectedSource);
+            if(props.stepData.selectedSource === 'collection'){
+                let srcCollection = props.stepData.sourceQuery.substring(
+                    props.stepData.sourceQuery.lastIndexOf("[") + 2,
+                    props.stepData.sourceQuery.lastIndexOf("]") - 1
                 );
                 setCollections(srcCollection);
             }
@@ -40,8 +38,7 @@ const ViewCustomDialog = (props) => {
             setSelectedSource('query');
         });
 
-    }, [props.customData]);
-
+    }, [props.stepData]);
 
   const formItemLayout = {
     labelCol: {
@@ -62,20 +59,11 @@ const ViewCustomDialog = (props) => {
   const { TextArea } = Input;
 
   const onCancel = () => {
-      props.setViewCustom(false);
+    props.setOpenStepSettings(false);
+    props.resetTabs();
   };
 
-  return (<Modal visible={props.viewCustom}
-    title={null}
-    width="700px"
-    className={styles.modal}
-    closable={true}
-    footer={null}
-    onCancel={() => onCancel()}
-    maskClosable={false}>
-
-    <p className={styles.title}>View Custom Step</p>
-    <br />
+  return (
     <div className={styles.newCustomForm}>
       <Form {...formItemLayout} colon={false}>
         <Form.Item label={<span>
@@ -142,7 +130,7 @@ const ViewCustomDialog = (props) => {
           <Icon type="question-circle" className={styles.questionCircleTextArea} theme="filled" />
         </MLTooltip></span>}
         </Form.Item>
-        <br /><br /><br /><br />
+        <br />
           <Form.Item className={styles.submitButtonsForm}>
               <div className={styles.submitButtons}>
                   <MLButton data-testid={`${customName}-cancel`} onClick={() => onCancel()}>Cancel</MLButton>
@@ -152,9 +140,8 @@ const ViewCustomDialog = (props) => {
           </Form.Item>
       </Form>
     </div>
-
-  </Modal>);
+  );
 };
 
-export default ViewCustomDialog;
+export default ViewCustom;
 

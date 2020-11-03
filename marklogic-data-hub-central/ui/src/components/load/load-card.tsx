@@ -1,14 +1,13 @@
 import React, {CSSProperties, useContext, useState, useEffect} from 'react';
 import styles from './load-card.module.scss';
 import { useHistory } from 'react-router-dom';
-import {Card, Icon, Tooltip, Popover, Row, Col, Modal, Select} from 'antd';
+import {Card, Icon, Row, Col, Modal, Select} from 'antd';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExclamationCircle, faPencilAlt} from '@fortawesome/free-solid-svg-icons';
 import {faTrashAlt} from '@fortawesome/free-regular-svg-icons';
 import sourceFormatOptions from '../../config/formats.config';
-import NewLoadDialog from './new-load-dialog/new-load-dialog';
 import { convertDateFromISO, sortStepsByUpdated } from '../../util/conversionFunctions';
-import AdvancedSettingsDialog from "../advanced-settings/advanced-settings-dialog";
+import Steps from "../steps/steps";
 import { AdvLoadTooltips, SecurityTooltips } from '../../config/tooltips.config';
 
 import { AuthoritiesContext } from "../../util/authorities";
@@ -33,8 +32,6 @@ interface Props {
 const LoadCard: React.FC<Props> = (props) => {
     const activityType = 'ingestion';
     const authorityService = useContext(AuthoritiesContext);
-    const [newDataLoad, setNewDataLoad] = useState(false);
-    const [title, setTitle] = useState('');
     const [stepData, setStepData] = useState({});
     const [dialogVisible, setDialogVisible] = useState(false);
     const [addDialogVisible, setAddDialogVisible] = useState(false);
@@ -44,31 +41,38 @@ const LoadCard: React.FC<Props> = (props) => {
     const [showLinks, setShowLinks] = useState('');
     const [selected, setSelected] = useState({}); // track Add Step selections so we can reset on cancel
     const [selectVisible, setSelectVisible] = useState(false);
-    const [openLoadSettings, setOpenLoadSettings] = useState(false);
+    const [openStepSettings, setOpenStepSettings] = useState(false);
+    const [isNewStep, setIsNewStep] = useState(false);
 
     useEffect(() => {
-       let sortedArray = props.data.length > 1 ? sortStepsByUpdated(props.data) : props.data;
-       setSortedLoads(sortedArray);
-    }, [props.data]);
+        let sortedArray = props.data.length > 1 ? sortStepsByUpdated(props.data) : props.data;
+        setSortedLoads(sortedArray);
+    }, [props.data])
 
     //To navigate to bench view with parameters
     let history = useHistory();
 
-    const OpenAddNewDialog = () => {
-        setTitle('New Loading Step');
-        setNewDataLoad(true);
-    };
+    const OpenAddNew = () => {
+        setIsNewStep(true);
+        setOpenStepSettings(true);
+    }
 
-    const OpenEditStepDialog = (index) => {
-        setTitle('Edit Loading Step');
+    const OpenStepSettings = (index) => {
+        setIsNewStep(false);
         setStepData(prevState => ({ ...prevState, ...props.data[index]}));
-        setNewDataLoad(true);
-    };
+        setOpenStepSettings(true);
+    }
 
-    const OpenLoadSettingsDialog = (index) => {
-        setStepData(prevState => ({ ...prevState, ...props.data[index]}));
-        setOpenLoadSettings(true);
-    };
+    const createLoadArtifact = (payload) => {
+        // Update local form state, then save to db
+        setStepData(prevState => ({ ...prevState, ...payload}));
+        props.createLoadArtifact(payload);
+    }
+
+    const updateLoadArtifact = (payload) => {
+        // Update local form state
+        setStepData(prevState => ({ ...prevState, ...payload}));
+    }
 
     // Custom CSS for source Format
     const sourceFormatStyle = (sourceFmt) => {
@@ -211,7 +215,7 @@ const LoadCard: React.FC<Props> = (props) => {
                     <Card
                         size="small"
                         className={styles.addNewCard}>
-                        <div aria-label="add-new-card"><Icon type="plus-circle" className={styles.plusIcon} theme="filled" onClick={OpenAddNewDialog}/></div>
+                        <div aria-label="add-new-card"><Icon type="plus-circle" className={styles.plusIcon} theme="filled" onClick={OpenAddNew}/></div>
                         <br />
                         <p className={styles.addNewContent}>Add New</p>
                     </Card>
@@ -223,8 +227,7 @@ const LoadCard: React.FC<Props> = (props) => {
                     >
                         <Card
                             actions={[
-                            <MLTooltip title={'Settings'} placement="bottom"><Icon type="setting" key="setting" data-testid={elem.name+'-settings'} onClick={() => OpenLoadSettingsDialog(index)}/></MLTooltip>,
-                            <MLTooltip title={'Edit'} placement="bottom"><i key="edit"></i><FontAwesomeIcon icon={faPencilAlt} data-testid={elem.name+'-edit'} onClick={() => OpenEditStepDialog(index)}/></MLTooltip>,
+                            <MLTooltip title={'Edit'} placement="bottom"><i key="edit"></i><FontAwesomeIcon icon={faPencilAlt} data-testid={elem.name+'-edit'} onClick={() => OpenStepSettings(index)}/></MLTooltip>,
                                 props.canReadWrite ?<MLTooltip title={'Delete'} placement="bottom"><i aria-label="icon: delete"><FontAwesomeIcon icon={faTrashAlt} className={styles.deleteIcon} size="lg"  data-testid={elem.name+'-delete'} onClick={() => handleCardDelete(elem.name)}/></i></MLTooltip> : <MLTooltip title={'Delete: ' + SecurityTooltips.missingPermission} placement="bottom" overlayStyle={{maxWidth: '200px'}}><i data-testid={elem.name+'-disabled-delete'}><FontAwesomeIcon icon={faTrashAlt} onClick={(event) => event.preventDefault()} className={styles.disabledDeleteIcon} size="lg"/></i></MLTooltip>,
                             ]}
                             className={styles.cardStyle}
@@ -266,22 +269,20 @@ const LoadCard: React.FC<Props> = (props) => {
                     </div>
                 </Col>)) : <span></span> }
             </Row>
-            <NewLoadDialog
-                newLoad={newDataLoad}
-                title={title}
-                setNewLoad={setNewDataLoad}
-                createLoadArtifact={props.createLoadArtifact}
+            {deleteConfirmation}
+            {addConfirmation}
+            <Steps
+                // Basic Settings
+                isNewStep={isNewStep}
+                createStep={createLoadArtifact}
                 stepData={stepData}
                 canReadWrite={props.canReadWrite}
                 canReadOnly={props.canReadOnly}
-            />
-            {deleteConfirmation}
-            {addConfirmation}
-            <AdvancedSettingsDialog
-                tooltipData={AdvLoadTooltips}
-                openAdvancedSettings={openLoadSettings}
-                setOpenAdvancedSettings={setOpenLoadSettings}
-                stepData={stepData}
+                // Advanced Settings
+                tooltipsData={AdvLoadTooltips}
+                openStepSettings={openStepSettings}
+                setOpenStepSettings={setOpenStepSettings}
+                updateStep={updateLoadArtifact}
                 activityType={activityType}
                 canWrite={authorityService.canWriteLoad()}
             />

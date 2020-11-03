@@ -1,21 +1,22 @@
 import { Modal, Form, Input, Icon, Radio, AutoComplete } from "antd";
 import React, { useState, useEffect, useContext } from "react";
-import styles from './create-edit-mapping-dialog.module.scss';
+import styles from './create-edit-mapping.module.scss';
 import { NewMapTooltips } from '../../../../config/tooltips.config';
 import { UserContext } from '../../../../util/user-context';
 import { MLButton, MLTooltip } from '@marklogic/design-system';
+import ConfirmYesNo from '../../../common/confirm-yes-no/confirm-yes-no';
 import axios from "axios"; 
 
-const CreateEditMappingDialog = (props) => {
+const CreateEditMapping = (props) => {
 
   const { handleError } = useContext(UserContext)
   const [mapName, setMapName] = useState('');
-  const [description, setDescription] = useState(props.mapData && props.mapData != {} ? props.mapData.description : '');
+  const [description, setDescription] = useState(props.stepData && props.stepData != {} ? props.stepData.description : '');
   //const [collections, setCollections] = useState<any[]>([]);
   const [collections, setCollections] = useState('');
   const [collectionOptions, setCollectionOptions] = useState(['a','b']);
-  const [selectedSource, setSelectedSource] = useState(props.mapData && props.mapData != {} ? props.mapData.selectedSource : 'collection')
-  const [srcQuery, setSrcQuery] = useState(props.mapData && props.mapData != {} ? props.mapData.sourceQuery : '');
+  const [selectedSource, setSelectedSource] = useState(props.stepData && props.stepData.selectedSource ? props.stepData.selectedSource : 'collection')
+  const [srcQuery, setSrcQuery] = useState(props.stepData && props.stepData != {} ? props.stepData.sourceQuery : '');
   const [isQuerySelected, setIsQuerySelected] = useState(false);
   //To check submit validity
   const [isMapNameTouched, setMapNameTouched] = useState(false);
@@ -28,38 +29,51 @@ const CreateEditMappingDialog = (props) => {
   const [isNameDuplicate,setIsNameDuplicate] = useState(false);
   const [errorMessage,setErrorMessage] = useState('');
 
-  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [discardChangesVisible, setDiscardChangesVisible] = useState(false);
   const [tobeDisabled, setTobeDisabled] = useState(false);
+  const [saveChangesVisible, setSaveChangesVisible] = useState(false);
+
+  const initStep = () => {
+    setMapName(props.stepData.name);
+    setDescription(props.stepData.description);
+    setSrcQuery(props.stepData.sourceQuery);
+    setSelectedSource(props.stepData.selectedSource);
+    if(isQuerySelected == true) setCollections("");
+    if(props.stepData.selectedSource === 'collection'){
+    if(props.stepData.sourceQuery.includes('[') && props.stepData.sourceQuery.includes(']')) {
+        let srcCollection = props.stepData.sourceQuery.substring(
+            props.stepData.sourceQuery.lastIndexOf("[") + 2,
+            props.stepData.sourceQuery.lastIndexOf("]") - 1
+        );
+        setCollections(srcCollection);
+    }
+    else if((props.stepData.sourceQuery.includes('(') && props.stepData.sourceQuery.includes(')'))){
+        let srcCollection = props.stepData.sourceQuery.substring(
+          props.stepData.sourceQuery.lastIndexOf("(") + 2,
+          props.stepData.sourceQuery.lastIndexOf(")") - 1
+        );
+        setCollections(srcCollection);
+    }
+    else{
+        setCollections(props.stepData.sourceQuery);
+    }
+    }
+    setIsValid(true);
+    setTobeDisabled(true);
+
+    setDescriptionTouched(false);
+    setCollectionsTouched(false);
+    setSrcQueryTouched(false);
+    setSelectedSourceTouched(false);
+  }
 
   useEffect(() => {
-    if (props.mapData && JSON.stringify(props.mapData) != JSON.stringify({}) && props.title === 'Edit Mapping Step') {
-      setMapName(props.mapData.name);
-      setDescription(props.mapData.description);
-      setSrcQuery(props.mapData.sourceQuery);
-      setSelectedSource(props.mapData.selectedSource);
-      if(isQuerySelected == true) setCollections("");
-      if(props.mapData.selectedSource === 'collection'){
-      if(props.mapData.sourceQuery.includes('[') && props.mapData.sourceQuery.includes(']')) {
-          let srcCollection = props.mapData.sourceQuery.substring(
-              props.mapData.sourceQuery.lastIndexOf("[") + 2,
-              props.mapData.sourceQuery.lastIndexOf("]") - 1
-          );
-          setCollections(srcCollection);
-      }
-      else if((props.mapData.sourceQuery.includes('(') && props.mapData.sourceQuery.includes(')'))){
-          let srcCollection = props.mapData.sourceQuery.substring(
-            props.mapData.sourceQuery.lastIndexOf("(") + 2,
-            props.mapData.sourceQuery.lastIndexOf(")") - 1
-          );
-          setCollections(srcCollection);
-      }
-      else{
-          setCollections(props.mapData.sourceQuery);
-      }
-      }
-      setIsValid(true);
-      setTobeDisabled(true);
-    } else {
+    // Edit step
+    if (props.stepData && JSON.stringify(props.stepData) != JSON.stringify({}) && !props.isNewStep) {
+      initStep();
+    } 
+    // New step
+    else {
       setMapName('');
       setMapNameTouched(false);
       setCollections('');
@@ -67,9 +81,8 @@ const CreateEditMappingDialog = (props) => {
       setSrcQuery('');
       setIsNameDuplicate(false);
     }
-
+    // Reset
     return (() => {
-
       setMapName('');
       setMapNameTouched(false);
       setDescription('');
@@ -81,19 +94,24 @@ const CreateEditMappingDialog = (props) => {
       setIsNameDuplicate(false);
     });
 
-  }, [props.mapData, props.title, props.newMap]);
+  }, [props.stepData, props.newMap]);
 
   const onCancel = () => {
-
-    if (checkDeleteOpenEligibility()) {
-      setDeleteDialogVisible(true);
+    if (hasFormChanged()) {
+      setDiscardChangesVisible(true);
     } else {
-      props.setNewMap(false);
-
+      props.setOpenStepSettings(false);
+      props.resetTabs();
     }
   };
 
-  const checkDeleteOpenEligibility = () => {
+  useEffect(() => {
+    if (props.currentTab !== props.tabKey && hasFormChanged()) {
+      setSaveChangesVisible(true);
+    }
+  }, [props.currentTab])
+
+  const hasFormChanged = () => {
     if (!isMapNameTouched
       && !isDescriptionTouched
       && !isSelectedSourceTouched
@@ -106,42 +124,44 @@ const CreateEditMappingDialog = (props) => {
     }
   };
 
-  const onOk = () => {
-    props.setNewMap(false);
+  const discardOk = () => {
+    props.setOpenStepSettings(false);
+    setDiscardChangesVisible(false);
   };
 
-  const onDelOk = () => {
-    props.setNewMap(false);
-    setDeleteDialogVisible(false);
+  const discardCancel = () => {
+    setDiscardChangesVisible(false);
   };
 
-  const onDelCancel = () => {
-    setDeleteDialogVisible(false);
-  };
+  const discardChanges = <ConfirmYesNo
+    visible={discardChangesVisible}
+    body='Discard changes?'
+    onYes={discardOk}
+    onNo={discardCancel}
+  />;
 
-  const deleteConfirmation = <Modal
-    visible={deleteDialogVisible}
-    bodyStyle={{ textAlign: 'center' }}
-    width={250}
-    maskClosable={false}
-    closable={false}
-    footer={null}
-  >
-    <span className={styles.ConfirmationMessage}>Discard changes?</span>
-    <br /><br />
-    <div >
-      <MLButton onClick={() => onDelCancel()}>No</MLButton>
-      &nbsp;&nbsp;
-            <MLButton type="primary" htmlType="submit" onClick={onDelOk}>Yes</MLButton>
-    </div>
-  </Modal>;
+  const saveOk = () => {
+    props.createMappingArtifact(getPayload());
+    setSaveChangesVisible(false)
+  }
 
-  const handleSubmit = async (event: { preventDefault: () => void; }) => {
-    if (event) event.preventDefault();
-    let dataPayload;
+  const saveCancel = () => {
+    setSaveChangesVisible(false);
+    initStep();
+  }
+
+  const saveChanges = <ConfirmYesNo
+    visible={saveChangesVisible}
+    body='Save changes?'
+    onYes={saveOk}
+    onNo={saveCancel}
+  />;
+
+  const getPayload = () => {
+    let result;
     if(selectedSource === 'collection') {
       let sQuery = `cts.collectionQuery(['${collections}'])`;
-      dataPayload = {
+      result = {
         name: mapName,
         targetEntityType: props.targetEntityType,
         description: description,
@@ -150,7 +170,7 @@ const CreateEditMappingDialog = (props) => {
       };
     } else {
         setIsQuerySelected(true); //to reset collection name
-        dataPayload = {
+        result = {
         name: mapName,
         targetEntityType: props.targetEntityType,
         description: description,
@@ -158,21 +178,17 @@ const CreateEditMappingDialog = (props) => {
         sourceQuery: srcQuery
       };
     }
+    return result;
+  }
+
+  const handleSubmit = async (event: { preventDefault: () => void; }) => {
+    if (event) event.preventDefault();
 
     setIsValid(true);
 
-    //Call create Mapping artifact API function
-
-    let status = await props.createMappingArtifact(dataPayload);
-
-    if (status.code === 200) {
-      props.setNewMap(false);
-    } else if (status.code === 400) {
-
-      setErrorMessage(status.message);
-      setIsNameDuplicate(true);
-      setIsValid(false);
-    }
+    props.createMappingArtifact(getPayload());
+    props.setOpenStepSettings(false);
+    props.resetTabs();
   }
 
    const handleSearch = async (value: any) => {
@@ -213,8 +229,8 @@ const CreateEditMappingDialog = (props) => {
     else {
       setCollectionsTouched(true);
       setCollections(data);
-      if (props.mapData && props.mapData.collection) {
-        if (props.mapData.collection === data) {
+      if (props.stepData && props.stepData.collection) {
+        if (props.stepData.collection === data) {
           setCollectionsTouched(false);
         }
       }
@@ -254,12 +270,12 @@ const CreateEditMappingDialog = (props) => {
       else {
         setDescriptionTouched(true);
         setDescription(event.target.value);
-        if (props.mapData && props.mapData.description) {
-          if (event.target.value === props.mapData.description) {
+        if (props.stepData && props.stepData.description) {
+          if (event.target.value === props.stepData.description) {
             setDescriptionTouched(false);
           }
         }
-        if (props.title === 'New Mapping Step') {
+        if (props.isNewStep) {
           if (event.target.value === '') {
             setDescriptionTouched(false);
           }
@@ -290,8 +306,8 @@ const CreateEditMappingDialog = (props) => {
       else {
         setCollectionsTouched(true);
         setCollections(event.target.value);
-        if (props.mapData && props.mapData.collection) {
-          if (props.mapData.collection === event.target.value) {
+        if (props.stepData && props.stepData.collection) {
+          if (props.stepData.collection === event.target.value) {
 
             setCollectionsTouched(false);
           }
@@ -305,6 +321,9 @@ const CreateEditMappingDialog = (props) => {
         }
       }
     }
+
+    props.setHasChanged(hasFormChanged()); // changed flag for parent
+
   };
 /* // Handling multiple collections in a select tags list - Deprecated
   const handleCollList = (value) => {
@@ -338,7 +357,7 @@ const CreateEditMappingDialog = (props) => {
       setSelectedSourceTouched(true);
       setSelectedSource(event.target.value);
 
-      if (props.mapData && event.target.value === props.mapData.selectedSource) {
+      if (props.stepData && event.target.value === props.stepData.selectedSource) {
         setSelectedSourceTouched(false);
       }
       if (event.target.value === 'collection') {
@@ -375,18 +394,7 @@ const CreateEditMappingDialog = (props) => {
   ];
   const { TextArea } = Input;
 
-  return (<Modal visible={props.newMap}
-    title={null}
-    width="700px"
-    onCancel={() => onCancel()}
-    onOk={() => onOk()}
-    okText="Save"
-    className={styles.modal}
-    footer={null}
-    maskClosable={false}>
-
-    <p className={styles.title}>{props.title}</p>
-    <br />
+  return (
     <div className={styles.newMappingForm}>
       <Form {...formItemLayout} onSubmit={handleSubmit} colon={false}>
         <Form.Item label={<span>
@@ -468,7 +476,6 @@ const CreateEditMappingDialog = (props) => {
           <Icon type="question-circle" className={styles.questionCircleTextArea} theme="filled" />
         </MLTooltip></span>}
         </Form.Item>
-        <br /><br /><br /><br />
 
         <Form.Item className={styles.submitButtonsForm}>
           <div className={styles.submitButtons}>
@@ -478,10 +485,10 @@ const CreateEditMappingDialog = (props) => {
           </div>
         </Form.Item>
       </Form>
+      {discardChanges}
+      {saveChanges}
     </div>
-    {deleteConfirmation}
-  </Modal>);
+  );
 };
 
-export default CreateEditMappingDialog;
-
+export default CreateEditMapping;

@@ -1,24 +1,34 @@
 // Passed as prop
 const advancedLoad = {
+    tabKey: '2',
+    tooltipsData: {},
+    openStepSettings: true,
+    setOpenStepSettings: jest.fn(),
+    stepData: {name: 'AdvancedLoad'},
+    updateLoadArtifact: jest.fn(),
     activityType: 'ingestion',
     canWrite: true,
-    openAdvancedSettings: true,
-    stepData: {
-      name: 'AdvancedLoad'
-    },
-    setOpenAdvancedSettings: jest.fn()
-};
+    currentTab: '2',
+    setIsValid: true,
+    resetTabs: jest.fn(),
+    setHasChanged: jest.fn(),
+}
 
 // Passed as prop
 const advancedMapping = {
+    tabKey: '2',
+    tooltipsData: {},
+    openStepSettings: true,
+    setOpenStepSettings: jest.fn(),
+    stepData: {name: 'AdvancedMapping'},
+    updateLoadArtifact: jest.fn(),
     activityType: 'mapping',
     canWrite: true,
-    openAdvancedSettings: true,
-    stepData: {
-      name: 'AdvancedMapping'
-    },
-    setOpenAdvancedSettings: jest.fn()
-};
+    currentTab: '2',
+    setIsValid: true,
+    resetTabs: jest.fn(),
+    setHasChanged: jest.fn(),
+}
 
 // Passed as prop
 const advancedMatching = {

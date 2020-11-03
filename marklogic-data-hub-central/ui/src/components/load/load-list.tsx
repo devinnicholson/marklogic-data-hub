@@ -5,11 +5,10 @@ import './load-list.scss';
 import {Table, Icon, Modal, Menu, Select, Dropdown} from 'antd';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {faTrashAlt} from '@fortawesome/free-regular-svg-icons';
-import NewLoadDialog from './new-load-dialog/new-load-dialog';
 import { MLButton } from '@marklogic/design-system';
 import  moment  from 'moment';
 import { convertDateFromISO } from '../../util/conversionFunctions';
-import AdvancedSettingsDialog from "../advanced-settings/advanced-settings-dialog";
+import Steps from "../steps/steps";
 import {AdvLoadTooltips, SecurityTooltips} from "../../config/tooltips.config";
 import { MLTooltip } from '@marklogic/design-system';
 
@@ -32,14 +31,13 @@ const LoadList: React.FC<Props> = (props) => {
     const location = useLocation<any>();
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [newDataLoad, setNewDataLoad] = useState(false);
-    const [title, setTitle] = useState('');
     const [dialogVisible, setDialogVisible] = useState(false);
     const [addDialogVisible, setAddDialogVisible] = useState(false);
     const [flowName, setFlowName] = useState('');
     const [loadArtifactName, setLoadArtifactName] = useState('');
     const [stepData,setStepData] = useState({});
-    const [openLoadSettings, setOpenLoadSettings] = useState(false);
+    const [openStepSettings, setOpenStepSettings] = useState(false);
+    const [isNewStep, setIsNewStep] = useState(false);
     const [selected, setSelected] = useState({}); // track Add Step selections so we can reset on cancel
 
     const pageSizeOptions = props.data.length > 40 ? ['10', '20', '30', '40', props.data.length] : ['10', '20', '30', '40'];
@@ -53,37 +51,43 @@ const LoadList: React.FC<Props> = (props) => {
 
     let history = useHistory();
 
-    const OpenAddNewDialog = () => {
-        setNewDataLoad(true);
-        setTitle('New Loading Step');
-    };
+    const OpenAddNew = () => {
+        setIsNewStep(true);
+        setOpenStepSettings(true);
+    }
 
-    const OpenEditStepDialog = (record) => {
-        setTitle('Edit Loading Step');
+    const OpenStepSettings = (record) => {
+        setIsNewStep(false);
         setStepData(prevState => ({ ...prevState, ...record}));
-        setNewDataLoad(true);
-    };
+        setOpenStepSettings(true);
+    }
 
-    const OpenLoadSettingsDialog = (record) => {
-        setStepData(prevState => ({ ...prevState, ...record}));
-        setOpenLoadSettings(true);
-    };
+    const createLoadArtifact = (payload) => {
+        // Update local form state, then save to db
+        setStepData(prevState => ({ ...prevState, ...payload}));
+        props.createLoadArtifact(payload);
+    }
+
+    const updateLoadArtifact = (payload) => {
+        // Update local form state
+        setStepData(prevState => ({ ...prevState, ...payload}));
+    }
 
     const showDeleteConfirm = (name) => {
         setDialogVisible(true);
         setLoadArtifactName(name);
-    };
+    }
 
     const onOk = (name) => {
         props.deleteLoadArtifact(name);
         setDialogVisible(false);
-    };
+    }
 
     const onCancel = () => {
         setDialogVisible(false);
         setAddDialogVisible(false);
         setSelected({}); // reset menus on cancel
-    };
+    }
 
     function handleSelect(obj) {
         let selectedNew = {...selected};
@@ -190,7 +194,7 @@ const LoadList: React.FC<Props> = (props) => {
           dataIndex: 'name',
           key: 'name',
           render: (text: any,record: any) => (
-              <span><span onClick={() => OpenEditStepDialog(record)} className={styles.editLoadConfig}>{text}</span> </span>
+              <span><span onClick={() => OpenStepSettings(record)} className={styles.editLoadConfig}>{text}</span> </span>
           ),
           sortDirections: ["ascend", "descend", "ascend"],
           sorter: (a:any, b:any) => a.name.localeCompare(b.name),
@@ -242,9 +246,9 @@ const LoadList: React.FC<Props> = (props) => {
                     <Dropdown data-testid={`${row.name}-dropdown`} overlay={menu(row.name)} trigger={['hover']} disabled = {!props.canWriteFlow} placement="bottomCenter">
                         {props.canWriteFlow ? <span className={'AddToFlowIcon'} aria-label = {row.name+'-add-icon'}></span> : <MLTooltip title={'Add to Flow: ' + SecurityTooltips.missingPermission} placement="bottom" overlayStyle={{maxWidth: '225px'}}><span aria-label = {row.name+'-disabled-add-icon'} className={'disabledAddToFlowIcon'}></span></MLTooltip>}
                     </Dropdown>
-                    <MLTooltip title={'Settings'} placement="bottom"><Icon type="setting" data-testid={row.name+'-settings'} onClick={() => OpenLoadSettingsDialog(row)} className={styles.settingsIcon} /></MLTooltip>
-                    &nbsp;&nbsp;
-                    {props.canReadWrite ? <MLTooltip title={'Delete'} placement="bottom"><i aria-label="icon: delete"><FontAwesomeIcon icon={faTrashAlt} data-testid={row.name+'-delete'} onClick={() => {showDeleteConfirm(row.name);}} className={styles.deleteIcon} size="lg"/></i></MLTooltip> :
+                    {/* <MLTooltip title={'Settings'} placement="bottom"><Icon type="setting" data-testid={row.name+'-settings'} onClick={() => OpenLoadSettingsDialog(row)} className={styles.settingsIcon} /></MLTooltip> */}
+                    &nbsp;
+                    {props.canReadWrite ? <MLTooltip title={'Delete'} placement="bottom"><i aria-label="icon: delete"><FontAwesomeIcon icon={faTrashAlt} data-testid={row.name+'-delete'} onClick={() => {showDeleteConfirm(row.name)}} className={styles.deleteIcon} size="lg"/></i></MLTooltip> :
                     <MLTooltip title={'Delete: ' + SecurityTooltips.missingPermission} placement="bottom" overlayStyle={{maxWidth: '200px'}}><i aria-label="icon: delete"><FontAwesomeIcon icon={faTrashAlt} data-testid={row.name+'-disabled-delete'} onClick={(event) => event.preventDefault()} className={styles.disabledDeleteIcon} size="lg"/></i></MLTooltip> }
                 </span>
             ),
@@ -261,7 +265,7 @@ const LoadList: React.FC<Props> = (props) => {
     <div id="load-list" aria-label="load-list" className={styles.loadList}>
         <div className={styles.addNewContainer}>
             {props.canReadWrite ? <div>
-                <MLButton aria-label="add-new-list" type="primary" size="default" className={styles.addNewButton} onClick={OpenAddNewDialog}>Add New</MLButton>
+                <MLButton aria-label="add-new-list" type="primary" size="default" className={styles.addNewButton} onClick={OpenAddNew}>Add New</MLButton>
             </div> : ''}
         </div>
         <Table
@@ -271,24 +275,23 @@ const LoadList: React.FC<Props> = (props) => {
             dataSource={props.data}
             rowKey="name"
         />
-        <NewLoadDialog
-            newLoad={newDataLoad}
-            title={title} setNewLoad={setNewDataLoad}
-            createLoadArtifact={props.createLoadArtifact}
+        {deleteConfirmation}
+        {addConfirmation}
+        <Steps
+            // Basic Settings
+            isNewStep={isNewStep}
+            createStep={createLoadArtifact}
             stepData={stepData}
             canReadWrite={props.canReadWrite}
             canReadOnly={props.canReadOnly}
-        />
-        {deleteConfirmation}
-        <AdvancedSettingsDialog
-            tooltipData={AdvLoadTooltips}
+            // Advanced Settings
+            tooltipsData={AdvLoadTooltips}
+            openStepSettings={openStepSettings}
+            setOpenStepSettings={setOpenStepSettings}
+            updateStep={updateLoadArtifact}
             activityType={activityType}
-            openAdvancedSettings={openLoadSettings}
-            setOpenAdvancedSettings={setOpenLoadSettings}
-            stepData={stepData}
             canWrite={props.canReadWrite}
         />
-        {addConfirmation}
     </div>
    );
 };
