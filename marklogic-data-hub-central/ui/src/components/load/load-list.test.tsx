@@ -179,17 +179,23 @@ describe("Load data component", () => {
     fireEvent.change(targetPermissions, {target: {value: "role1"}}); // BAD permissions
     expect(targetPermissions).toHaveValue("role1");
     fireEvent.blur(targetPermissions);
-    expect(getByTestId("validationError")).toHaveTextContent(AdvancedSettingsMessages.targetPermissions.incorrectFormat);
+    
+    //TODO: Test with reference rather than hardcoded string.
+    expect(getByTestId("validationError")).toHaveTextContent("The format of the string is incorrect. The required format is role,capability,role,capability,....");
 
     fireEvent.change(targetPermissions, {target: {value: "role1,reader"}}); // BAD permissions
     expect(targetPermissions).toHaveValue("role1,reader");
     fireEvent.blur(targetPermissions);
-    expect(getByTestId("validationError")).toHaveTextContent(AdvancedSettingsMessages.targetPermissions.invalidCapabilities);
+    
+    //TODO: Test with reference rather than hardcoded string.
+    expect(getByTestId("validationError")).toHaveTextContent("The string contains invalid capabilities. Capabilities must be read, insert, update, or execute.");
 
     fireEvent.change(targetPermissions, {target: {value: " "}}); // BAD permissions
     expect(targetPermissions).toHaveValue(" ");
     fireEvent.blur(targetPermissions);
-    expect(getByTestId("validationError")).toHaveTextContent(AdvancedSettingsMessages.targetPermissions.incorrectFormat);
+
+    //TODO: Test with reference rather than hardcoded string.
+    expect(getByTestId("validationError")).toHaveTextContent("The format of the string is incorrect. The required format is role,capability,role,capability,....");
 
     fireEvent.change(targetPermissions, {target: {value: "role1,read"}}); // GOOD permissions
     expect(targetPermissions).toHaveValue("role1,read");
